@@ -6,8 +6,16 @@
 #include "unixtime.h"
 #include "sha1.h"
 
-#define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, 0xD2, 0x62, 0x4E, 0xDE, 0xAA, 0xAD, 0xED, 0xBE, 0xEF, 0xE3, 0x8A, 0x02}
-PBL_APP_INFO(MY_UUID, "Simplicity - TOTP", "Peter Krempa", 3, 0 /* App version */, RESOURCE_ID_IMAGE_MENU_ICON, APP_INFO_WATCH_FACE);
+#define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, \
+                 0xD2, 0x62, 0x4E, 0xDE, \
+                 0xAA, 0xAD, 0xED, 0xBE, \
+                 0xEF, 0xE3, 0x8A, 0x02}
+
+PBL_APP_INFO(MY_UUID,
+             "SimpleTOTP",
+             "Peter Krempa",
+             3, 0 /* App version */,
+             RESOURCE_ID_IMAGE_MENU_ICON, APP_INFO_WATCH_FACE);
 
 #define COLOR_FG GColorBlack
 #define COLOR_BG GColorWhite
@@ -28,8 +36,8 @@ void line_layer_update_callback(Layer *me, GContext* ctx) {
 
   graphics_draw_line(ctx, GPoint(8, 97), GPoint(131, 97));
   graphics_draw_line(ctx, GPoint(8, 98), GPoint(131, 98));
-
 }
+
 
 void
 update_watch(PblTm *t, PblTm *oldt, bool force)
