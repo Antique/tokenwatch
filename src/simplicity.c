@@ -13,7 +13,7 @@ Window window;
 
 TextLayer text_date_layer;
 TextLayer text_time_layer;
-TextLayer test;
+TextLayer text_totp_layer;
 
 Layer line_layer;
 
@@ -82,12 +82,12 @@ handle_init(AppContextRef ctx)
     text_layer_set_font(&text_time_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLD_SUBSET_49)));
     layer_add_child(&window.layer, &text_time_layer.layer);
 
-    text_layer_init(&test, window.layer.frame);
-    text_layer_set_text_color(&text_time_layer, GColorBlack);
-    text_layer_set_background_color(&test, GColorClear);
-    layer_set_frame(&test.layer, GRect(8, 10, 144-8, 168-10));
-    text_layer_set_font(&test, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
-    layer_add_child(&window.layer, &test.layer);
+    text_layer_init(&text_totp_layer, window.layer.frame);
+    text_layer_set_text_color(&text_totp_layer, GColorBlack);
+    text_layer_set_background_color(&text_totp_layer, GColorClear);
+    layer_set_frame(&text_totp_layer.layer, GRect(20, 10, 144-20, 168-10));
+    text_layer_set_font(&text_totp_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
+    layer_add_child(&window.layer, &text_totp_layer.layer);
 
     layer_init(&line_layer, window.layer.frame);
     line_layer.update_proc = &line_layer_update_callback;
@@ -96,10 +96,8 @@ handle_init(AppContextRef ctx)
     /* update watch right away */
     get_time(&oldt);
     update_watch(&oldt, NULL, true);
-
-
-    text_layer_set_text(&test, "123456");
 }
+
 
 void
 handle_tick(AppContextRef ctx, PebbleTickEvent *t)
@@ -112,7 +110,7 @@ handle_tick(AppContextRef ctx, PebbleTickEvent *t)
     oldt = *t->tick_time;
 
     snprintf(token, 20, "%.6u", otp_value(key, 20,  totpcount));
-    text_layer_set_text(&test, token);
+    text_layer_set_text(&text_totp_layer, token);
 }
 
 
