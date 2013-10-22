@@ -3,6 +3,7 @@
 #include "pebble_fonts.h"
 
 #include "otp.h"
+#include "unixtime.h"
 #include "sha1.h"
 
 #define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, 0xD2, 0x62, 0x4E, 0xDE, 0xAA, 0xAD, 0xED, 0xBE, 0xEF, 0xE3, 0x8A, 0x02}
@@ -27,7 +28,6 @@ void line_layer_update_callback(Layer *me, GContext* ctx) {
 
 }
 
-//#define otp_value(asdgf,...) 0
 void
 update_watch(PblTm *t, PblTm *oldt, bool force)
 {
@@ -101,60 +101,17 @@ handle_init(AppContextRef ctx)
     text_layer_set_text(&test, "123456");
 }
 
-/* pebble SDK doesn't treat unix time as it should, compensate for it */
-static const uint64_t leap_second_offset = 8;
-static const uint64_t timezone_offset = 0;
-
-static bool
-is_dst_in_CET(PblTm *t)
-{
-    /* DST SUCKS!@!@!!! */
-    /* DST in CET is from
-     * last sunday in March, 00:03:00, to
-     * last sunday in October, 00:02:00, but this check will slip 1 hour */
-    //TODO
-#if 0
-    if ((t->tm_mon >= 2 && t->tm_mon <= 9) &&
-
-
-       )
-        ble;
-#endif
-    return true;
-
-    //return false;
-}
-static uint32_t
-get_unix_time(PblTm *t)
-{
-    time_t pebble_time = time(NULL);
-
-    /* compensate leap seconds */
-    pebble_time += leap_second_offset;
-
-    /* compensate DST and timezone */
-    pebble_time -= timezone_offset;
-
-    if (is_dst_in_CET(t))
-        pebble_time -= 3600;
-
-   return pebble_time;
-}
-
-
 void
 handle_tick(AppContextRef ctx, PebbleTickEvent *t)
 {
     static char token[20];
     unsigned char key[] = "\xe8\x50\xc0\x16\x72\x56\x1e\xd8\x1b\xd8\x59\x88\x4d\xdc\x62\xdf\x8c\x83\x42\x31";
-    uint32_t unixtime;
+    uint32_t totpcount = unixtime() / 60;
 
     update_watch(t->tick_time, &oldt, false);
     oldt = *t->tick_time;
-    unixtime = get_unix_time(t->tick_time);
-    unixtime /= 60;
 
-    snprintf(token, 20, "%.6u", otp_value(key, 20,  unixtime));
+    snprintf(token, 20, "%.6u", otp_value(key, 20,  totpcount));
     text_layer_set_text(&test, token);
 }
 
