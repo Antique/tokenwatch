@@ -86,16 +86,6 @@ void sha1_process( sha1_context *ctx, const unsigned char data[64] );
 void sha1( const unsigned char *input, size_t ilen, unsigned char output[20] );
 
 /**
- * \brief          Output = SHA-1( file contents )
- *
- * \param path     input file name
- * \param output   SHA-1 checksum result
- *
- * \return         0 if successful, or POLARSSL_ERR_SHA1_FILE_IO_ERROR
- */
-int sha1_file( const char *path, unsigned char output[20] );
-
-/**
  * \brief          SHA-1 HMAC context setup
  *
  * \param ctx      HMAC context to be initialized
@@ -122,13 +112,6 @@ void sha1_hmac_update( sha1_context *ctx, const unsigned char *input, size_t ile
 void sha1_hmac_finish( sha1_context *ctx, unsigned char output[20] );
 
 /**
- * \brief          SHA-1 HMAC context reset
- *
- * \param ctx      HMAC context to be reset
- */
-void sha1_hmac_reset( sha1_context *ctx );
-
-/**
  * \brief          Output = HMAC-SHA-1( hmac key, input buffer )
  *
  * \param key      HMAC secret key
@@ -140,11 +123,4 @@ void sha1_hmac_reset( sha1_context *ctx );
 void sha1_hmac( const unsigned char *key, size_t keylen,
                 const unsigned char *input, size_t ilen,
                 unsigned char output[20] );
-
-/**
- * \brief          Checkup routine
- *
- * \return         0 if successful, or 1 if the test failed
- */
-int sha1_self_test( int verbose );
 #endif
