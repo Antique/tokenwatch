@@ -44,15 +44,3 @@ otp_value(const unsigned char *key,
 
     return otp_truncate(hmac_result) % 1000000;
 }
-
-#if 0
-int main(void)
-{
-    const unsigned char key[20];
-    memset(key, 0x00, 20);
-    for (size_t i = 0 ; i < 10 ; i++) {
-        printf("id: %d: %.6d\n", i, otp_value(key, 20, i));
-    }
-}
-
-#endif
