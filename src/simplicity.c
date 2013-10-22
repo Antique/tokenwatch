@@ -2,9 +2,7 @@
 #include "pebble_app.h"
 #include "pebble_fonts.h"
 
-#include "otp.h"
-#include "unixtime.h"
-#include "sha1.h"
+#include "pebble_totp.h"
 
 #define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, \
                  0xD2, 0x62, 0x4E, 0xDE, \
@@ -29,6 +27,7 @@ TextLayer text_totp_layer;
 Layer line_layer;
 
 PblTm oldt;
+pebble_totp token;
 
 void line_layer_update_callback(Layer *me, GContext* ctx) {
 
@@ -73,6 +72,8 @@ update_watch(PblTm *t, PblTm *oldt, bool force)
 void
 handle_init(AppContextRef ctx)
 {
+    unsigned char key[] = "\xe8\x50\xc0\x16\x72\x56\x1e\xd8\x1b\xd8\x59\x88\x4d\xdc\x62\xdf\x8c\x83\x42\x31";
+
     window_init(&window, "SimpleTOTP");
     window_stack_push(&window, false /* Animated */);
     window_set_background_color(&window, COLOR_BG);
@@ -107,21 +108,20 @@ handle_init(AppContextRef ctx)
     /* update watch right away */
     get_time(&oldt);
     update_watch(&oldt, NULL, true);
+
+    pebble_totp_init(&token, key, sizeof(key), 60);
+    text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
 }
 
 
 void
 handle_tick(AppContextRef ctx, PebbleTickEvent *t)
 {
-    static char token[20];
-    unsigned char key[] = "\xe8\x50\xc0\x16\x72\x56\x1e\xd8\x1b\xd8\x59\x88\x4d\xdc\x62\xdf\x8c\x83\x42\x31";
-    uint32_t totpcount = unixtime() / 60;
-
     update_watch(t->tick_time, &oldt, false);
     oldt = *t->tick_time;
 
-    snprintf(token, 20, "%.6u", otp_value(key, 20,  totpcount));
-    text_layer_set_text(&text_totp_layer, token);
+    if (pebble_totp_tick(&token))
+        text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
 }
 
 
