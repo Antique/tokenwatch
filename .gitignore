@@ -2,6 +2,7 @@
 .lock-waf*
 .waf-*
 build/
+resources/wscript
 include
 lib
 pebble_app.ld
