@@ -3,6 +3,7 @@
 #include "pebble_fonts.h"
 
 #include "pebble_totp.h"
+#include "config.h"
 
 #define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, \
                  0xD2, 0x62, 0x4E, 0xDE, \
@@ -79,7 +80,7 @@ update_watch(PblTm *t, PblTm *oldt, bool force)
 void
 handle_init(AppContextRef ctx)
 {
-    unsigned char key[] = "\xe8\x50\xc0\x16\x72\x56\x1e\xd8\x1b\xd8\x59\x88\x4d\xdc\x62\xdf\x8c\x83\x42\x31";
+    unsigned char key[] = TOTP_SECRET;
 
     window_init(&window, "SimpleTOTP");
     window_stack_push(&window, false /* Animated */);
@@ -116,7 +117,7 @@ handle_init(AppContextRef ctx)
     get_time(&oldt);
     update_watch(&oldt, NULL, true);
 
-    pebble_totp_init(&token, key, sizeof(key), 60);
+    pebble_totp_init(&token, key, sizeof(key), TOTP_INTERVAL);
     text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
 }
 

@@ -1,4 +1,5 @@
 #include "unixtime.h"
+#include "config.h"
 
 #include <time.h>
 
