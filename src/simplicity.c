@@ -15,8 +15,15 @@ PBL_APP_INFO(MY_UUID,
              3, 0 /* App version */,
              RESOURCE_ID_IMAGE_MENU_ICON, APP_INFO_WATCH_FACE);
 
-#define COLOR_FG GColorBlack
-#define COLOR_BG GColorWhite
+
+#ifndef COLOR_SCHEME_INVERT
+# define COLOR_FG GColorBlack
+# define COLOR_BG GColorWhite
+#else
+# define COLOR_FG GColorWhite
+# define COLOR_BG GColorBlack
+#endif
+
 
 Window window;
 
