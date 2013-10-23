@@ -104,7 +104,7 @@ handle_init(AppContextRef ctx)
     text_layer_init(&text_totp_layer, window.layer.frame);
     text_layer_set_text_color(&text_totp_layer, COLOR_FG);
     text_layer_set_background_color(&text_totp_layer, GColorClear);
-    layer_set_frame(&text_totp_layer.layer, GRect(20, 10, 144-20, 168-10));
+    layer_set_frame(&text_totp_layer.layer, GRect(35, 10, 144-35, 168-10));
     text_layer_set_font(&text_totp_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
     layer_add_child(&window.layer, &text_totp_layer.layer);
 
