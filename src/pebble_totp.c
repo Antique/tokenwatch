@@ -34,14 +34,19 @@ pebble_totp_init(pebble_totp *token,
 
 
 bool
-pebble_totp_tick(pebble_totp *token)
+pebble_totp_tick(pebble_totp *token, short *progress)
 {
-    if (++token->next < token->interval)
-        return false;
+    bool ret = false;
+    *progress = token->interval - ++token->next;
 
-    token->next = pebble_totp_generate(token);
+    if (*progress < 0) {
+        ret = token->interval;
+        token->next = pebble_totp_generate(token);
+        ret = true;
+    }
 
-    return true;
+    *progress = *progress / (token->interval / 6);
+    return ret;
 }
 
 

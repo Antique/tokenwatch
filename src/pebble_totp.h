@@ -16,6 +16,6 @@ void pebble_totp_init(pebble_totp *token,
                       size_t keylen,
                       unsigned short interval);
 
-bool pebble_totp_tick(pebble_totp *token);
+bool pebble_totp_tick(pebble_totp *token, short *progress);
 
 char *pebble_totp_get_code(pebble_totp *token);

@@ -1,12 +1,1 @@
-.*.swp
-.lock-waf*
-.waf-*
-build/
-resources/wscript
-include
-lib
-pebble_app.ld
-tools
-waf
-wscript
-
+src/config.h

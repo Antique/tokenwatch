@@ -5,10 +5,10 @@
 #include "pebble_totp.h"
 #include "config.h"
 
-#define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, \
-                 0xD2, 0x62, 0x4E, 0xDE, \
-                 0xAA, 0xAD, 0xED, 0xBE, \
-                 0xEF, 0xE3, 0x8A, 0x02}
+#define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2,        \
+            0xD2, 0x62, 0x4E, 0xDE,             \
+            0xAA, 0xAD, 0xED, 0xBE,             \
+            0xEF, 0xE3, 0x8A, 0x02}
 
 PBL_APP_INFO(MY_UUID,
              "SimpleTOTP",
@@ -28,21 +28,74 @@ PBL_APP_INFO(MY_UUID,
 
 Window window;
 
-TextLayer text_date_layer;
-TextLayer text_time_layer;
-TextLayer text_totp_layer;
+struct MyText {
+    GTextAlignment align;
+    GRect rect;
+    TextLayer layer;
+    enum {
+        MY_FONT_SMALL = 0,
+        MY_FONT_MIDDLE,
+        MY_FONT_LARGE,
 
-Layer line_layer;
+        MY_FONT_LAST
+    } font;
+} text_layers[] = {
+    {
+        .align = GTextAlignmentLeft,
+        .rect = {{0, 0}, {144, 14}},
+        .font = MY_FONT_SMALL,
+    },
+    {
+        .align = GTextAlignmentRight,
+        .rect = {{0, 0}, {144, 14}},
+        .font = MY_FONT_SMALL,
+    },
+    {
+        .align = GTextAlignmentCenter,
+        .rect = {{0, 58}, {144, 18}},
+        .font = MY_FONT_MIDDLE,
+    },
+    {
+        .align = GTextAlignmentCenter,
+        .rect = {{0, 76}, {144, 49}},
+        .font = MY_FONT_LARGE,
+    },
+};
+
+static const short nlayers = sizeof(text_layers) / sizeof(text_layers[0]);
+
+const char *fonts_used[MY_FONT_LAST] = { FONT_KEY_GOTHIC_14,
+                                         FONT_KEY_GOTHIC_18_BOLD,
+                                         FONT_KEY_ROBOTO_BOLD_SUBSET_49 };
+
+Layer progress_layer;
+short progress = 0;
 
 PblTm oldt;
 pebble_totp token;
 
-void line_layer_update_callback(Layer *me, GContext* ctx) {
 
-  graphics_context_set_stroke_color(ctx, COLOR_FG);
+void progress_callback(Layer *me, GContext* ctx)
+{
+    short i;
 
-  graphics_draw_line(ctx, GPoint(8, 97), GPoint(131, 97));
-  graphics_draw_line(ctx, GPoint(8, 98), GPoint(131, 98));
+    graphics_context_set_stroke_color(ctx, COLOR_FG);
+
+    if (progress)
+        graphics_draw_line(ctx, GPoint(0, 16), GPoint(progress * 9, 16));
+
+    /* WOW, a Meter??? */
+    for (i = 0; i < 16; i++) {
+        short x = i * 3;
+        short thr = 2;
+
+        if (i % 15 && i % 5)
+            thr--;
+
+        graphics_draw_line(ctx,
+                           GPoint(x, 16),
+                           GPoint(x, 16 + thr));
+    }
 }
 
 
@@ -51,15 +104,18 @@ update_watch(PblTm *t, PblTm *oldt, bool force)
 {
     // Need to be static because they're used by the system later.
     static char time_text[] = "00:00";
-    static char date_text[] = "Xxxxxxxxx 00";
+    static char top_date_text[] = "YYYY-MM-DD";
+    static char mid_date_text[] = "Day, Mon 00";
 
     char *time_format;
 
     /* update date */
-    if (force ||
-        oldt->tm_mday != t->tm_mday) {
-        string_format_time(date_text, sizeof(date_text), "%B %e", t);
-        text_layer_set_text(&text_date_layer, date_text);
+    if (force || oldt->tm_mday != t->tm_mday) {
+        string_format_time(top_date_text, sizeof(top_date_text), "%F", t);
+        text_layer_set_text(&text_layers[1].layer, top_date_text);
+
+        string_format_time(mid_date_text, sizeof(mid_date_text), "%a, %d %b", t);
+        text_layer_set_text(&text_layers[2].layer, mid_date_text);
     }
 
     /* update time */
@@ -72,7 +128,7 @@ update_watch(PblTm *t, PblTm *oldt, bool force)
             time_format = "%I:%M";
 
         string_format_time(time_text, sizeof(time_text), time_format, t);
-        text_layer_set_text(&text_time_layer, time_text);
+        text_layer_set_text(&text_layers[3].layer, time_text);
     }
 }
 
@@ -80,7 +136,9 @@ update_watch(PblTm *t, PblTm *oldt, bool force)
 void
 handle_init(AppContextRef ctx)
 {
+    GFont fonts[MY_FONT_LAST];
     unsigned char key[] = TOTP_SECRET;
+    short i = 0;
 
     window_init(&window, "SimpleTOTP");
     window_stack_push(&window, false /* Animated */);
@@ -88,60 +146,63 @@ handle_init(AppContextRef ctx)
 
     resource_init_current_app(&APP_RESOURCES);
 
-    text_layer_init(&text_date_layer, window.layer.frame);
-    text_layer_set_text_color(&text_date_layer, COLOR_FG);
-    text_layer_set_background_color(&text_date_layer, GColorClear);
-    layer_set_frame(&text_date_layer.layer, GRect(8, 68, 144-8, 168-68));
-    text_layer_set_font(&text_date_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
-    layer_add_child(&window.layer, &text_date_layer.layer);
 
-    text_layer_init(&text_time_layer, window.layer.frame);
-    text_layer_set_text_color(&text_time_layer, COLOR_FG);
-    text_layer_set_background_color(&text_time_layer, GColorClear);
-    layer_set_frame(&text_time_layer.layer, GRect(7, 92, 144-7, 168-92));
-    text_layer_set_font(&text_time_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLD_SUBSET_49)));
-    layer_add_child(&window.layer, &text_time_layer.layer);
+    for (i = 0; i < MY_FONT_LAST; i++)
+        fonts[i] = fonts_get_system_font(fonts_used[i]);
 
-    text_layer_init(&text_totp_layer, window.layer.frame);
-    text_layer_set_text_color(&text_totp_layer, COLOR_FG);
-    text_layer_set_background_color(&text_totp_layer, GColorClear);
-    layer_set_frame(&text_totp_layer.layer, GRect(35, 10, 144-35, 168-10));
-    text_layer_set_font(&text_totp_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
-    layer_add_child(&window.layer, &text_totp_layer.layer);
+    for (i = 0; i < nlayers; i++) {
+        struct MyText *t = &text_layers[i];
 
-    layer_init(&line_layer, window.layer.frame);
-    line_layer.update_proc = &line_layer_update_callback;
-    layer_add_child(&window.layer, &line_layer);
+        text_layer_init(&t->layer, window.layer.frame);
+        text_layer_set_text_color(&t->layer, COLOR_FG);
+        text_layer_set_background_color(&t->layer, GColorClear);
+        text_layer_set_text_alignment(&t->layer, t->align);
+        layer_set_frame(&t->layer.layer, t->rect);
+        text_layer_set_font(&t->layer, fonts[t->font]);
+        layer_add_child(&window.layer, &t->layer.layer);
+    }
+
+    layer_init(&progress_layer, window.layer.frame);
+    progress_layer.update_proc = &progress_callback;
+    layer_add_child(&window.layer, &progress_layer);
 
     /* update watch right away */
     get_time(&oldt);
     update_watch(&oldt, NULL, true);
 
+    /* and the "progress bar" as well */
+    layer_mark_dirty(&progress_layer);
+
     pebble_totp_init(&token, key, sizeof(key), TOTP_INTERVAL);
-    text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
+    text_layer_set_text(&text_layers[0].layer, pebble_totp_get_code(&token));
 }
 
 
 void
 handle_tick(AppContextRef ctx, PebbleTickEvent *t)
 {
+    short last_progress = progress;
+
     update_watch(t->tick_time, &oldt, false);
     oldt = *t->tick_time;
 
-    if (pebble_totp_tick(&token))
-        text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
+    if (pebble_totp_tick(&token, &progress))
+        text_layer_set_text(&text_layers[0].layer, pebble_totp_get_code(&token));
+
+    if (last_progress != progress)
+        layer_mark_dirty(&progress_layer);
 }
 
 
 void pbl_main(void *params) {
-  PebbleAppHandlers handlers = {
-    .init_handler = &handle_init,
+    PebbleAppHandlers handlers = {
+        .init_handler = &handle_init,
 
-    .tick_info = {
-      .tick_handler = &handle_tick,
-      .tick_units = SECOND_UNIT
-    }
+        .tick_info = {
+            .tick_handler = &handle_tick,
+            .tick_units = SECOND_UNIT
+        }
 
-  };
-  app_event_loop(params, &handlers);
+    };
+    app_event_loop(params, &handlers);
 }
