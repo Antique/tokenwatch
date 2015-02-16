@@ -1,7 +1,5 @@
 #include <string.h>
 
-#include "pebble_app.h"
-
 typedef struct _pebble_totp pebble_totp;
 struct _pebble_totp {
     unsigned char key[20];

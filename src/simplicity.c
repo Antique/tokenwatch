@@ -1,147 +1,160 @@
-#include "pebble_os.h"
-#include "pebble_app.h"
-#include "pebble_fonts.h"
+#include "pebble.h"
 
 #include "pebble_totp.h"
 #include "config.h"
 
-#define MY_UUID {0xA4, 0x1B, 0xB0, 0xE2, \
-                 0xD2, 0x62, 0x4E, 0xDE, \
-                 0xAA, 0xAD, 0xED, 0xBE, \
-                 0xEF, 0xE3, 0x8A, 0x02}
-
-PBL_APP_INFO(MY_UUID,
-             "SimpleTOTP",
-             "Peter Krempa",
-             3, 0 /* App version */,
-             RESOURCE_ID_IMAGE_MENU_ICON, APP_INFO_WATCH_FACE);
+#define COLOR_BG GColorBlack
+#define COLOR_FG GColorWhite
 
 
-#ifndef COLOR_SCHEME_INVERT
-# define COLOR_FG GColorBlack
-# define COLOR_BG GColorWhite
-#else
-# define COLOR_FG GColorWhite
-# define COLOR_BG GColorBlack
-#endif
+static Window *window;
+
+static TextLayer *text_date_layer;
+static TextLayer *text_time_layer;
+static TextLayer *text_totp_layer;
+
+static Layer *line_layer;
+
+static GFont *small_font;
+static GFont *bold_font;
+
+static pebble_totp token;
+
+static struct tm old_time;
 
 
-Window window;
-
-TextLayer text_date_layer;
-TextLayer text_time_layer;
-TextLayer text_totp_layer;
-
-Layer line_layer;
-
-PblTm oldt;
-pebble_totp token;
-
-void line_layer_update_callback(Layer *me, GContext* ctx) {
-
-  graphics_context_set_stroke_color(ctx, COLOR_FG);
-
-  graphics_draw_line(ctx, GPoint(8, 97), GPoint(131, 97));
-  graphics_draw_line(ctx, GPoint(8, 98), GPoint(131, 98));
+void line_layer_update_callback(Layer *layer, GContext* ctx) {
+  graphics_context_set_fill_color(ctx, COLOR_FG);
+  graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
 }
 
 
 void
-update_watch(PblTm *t, PblTm *oldt, bool force)
+update_time(struct tm *tick, struct tm *old)
 {
-    // Need to be static because they're used by the system later.
     static char time_text[] = "00:00";
-    static char date_text[] = "Xxxxxxxxx 00";
+    static char date_text[] = "Xxxxxxxxxx 00";
 
-    char *time_format;
-
-    /* update date */
-    if (force ||
-        oldt->tm_mday != t->tm_mday) {
-        string_format_time(date_text, sizeof(date_text), "%B %e", t);
-        text_layer_set_text(&text_date_layer, date_text);
+    if (!tick) {
+        time_t temp = time(NULL);
+        tick = localtime(&temp);
     }
 
-    /* update time */
-    if (force ||
-        oldt->tm_min != t->tm_min) {
-
-        if (clock_is_24h_style())
-            time_format = "%R";
-        else
-            time_format = "%I:%M";
-
-        string_format_time(time_text, sizeof(time_text), time_format, t);
-        text_layer_set_text(&text_time_layer, time_text);
+    if (!old || tick->tm_mday != old->tm_mday) {
+        strftime(date_text, sizeof(date_text), "%B %e", tick);
+        text_layer_set_text(text_date_layer, date_text);
     }
+
+    if (clock_is_24h_style())
+        strftime(time_text, sizeof(time_text), "%R", tick);
+    else
+        strftime(time_text, sizeof(time_text), "%I:%M", tick);
+
+    text_layer_set_text(text_time_layer, time_text);
+
+    old_time = *tick;
 }
 
 
 void
-handle_init(AppContextRef ctx)
+main_window_load(Window *window)
 {
     unsigned char key[] = TOTP_SECRET;
 
-    window_init(&window, "SimpleTOTP");
-    window_stack_push(&window, false /* Animated */);
-    window_set_background_color(&window, COLOR_BG);
+    /* load custom fonts */
+    small_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21));
+    bold_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLD_SUBSET_49));
 
-    resource_init_current_app(&APP_RESOURCES);
+    Layer *window_layer = window_get_root_layer(window);
 
-    text_layer_init(&text_date_layer, window.layer.frame);
-    text_layer_set_text_color(&text_date_layer, COLOR_FG);
-    text_layer_set_background_color(&text_date_layer, GColorClear);
-    layer_set_frame(&text_date_layer.layer, GRect(8, 68, 144-8, 168-68));
-    text_layer_set_font(&text_date_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
-    layer_add_child(&window.layer, &text_date_layer.layer);
+    /* create date layer */
+    text_date_layer = text_layer_create(GRect(8, 68, 144-8, 100));
+    text_layer_set_text_color(text_date_layer, COLOR_FG);
+    text_layer_set_background_color(text_date_layer, COLOR_BG);
+    text_layer_set_font(text_date_layer, small_font);
+    layer_add_child(window_layer, text_layer_get_layer(text_date_layer));
 
-    text_layer_init(&text_time_layer, window.layer.frame);
-    text_layer_set_text_color(&text_time_layer, COLOR_FG);
-    text_layer_set_background_color(&text_time_layer, GColorClear);
-    layer_set_frame(&text_time_layer.layer, GRect(7, 92, 144-7, 168-92));
-    text_layer_set_font(&text_time_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLD_SUBSET_49)));
-    layer_add_child(&window.layer, &text_time_layer.layer);
+    /* create time layer */
+    text_time_layer = text_layer_create(GRect(7, 92, 144-7, 70));
+    text_layer_set_text_color(text_time_layer, COLOR_FG);
+    text_layer_set_background_color(text_time_layer, COLOR_BG);
+    text_layer_set_font(text_time_layer, bold_font);
+    layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
-    text_layer_init(&text_totp_layer, window.layer.frame);
-    text_layer_set_text_color(&text_totp_layer, COLOR_FG);
-    text_layer_set_background_color(&text_totp_layer, GColorClear);
-    layer_set_frame(&text_totp_layer.layer, GRect(35, 10, 144-35, 168-10));
-    text_layer_set_font(&text_totp_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_21)));
-    layer_add_child(&window.layer, &text_totp_layer.layer);
+    /* create totp layer */
+    text_totp_layer = text_layer_create(GRect(35, 10, 144-35, 50));
+    text_layer_set_text_color(text_totp_layer, COLOR_FG);
+    text_layer_set_background_color(text_totp_layer, COLOR_BG);
+    text_layer_set_font(text_totp_layer, small_font);
+    layer_add_child(window_layer, text_layer_get_layer(text_totp_layer));
 
-    layer_init(&line_layer, window.layer.frame);
-    line_layer.update_proc = &line_layer_update_callback;
-    layer_add_child(&window.layer, &line_layer);
-
-    /* update watch right away */
-    get_time(&oldt);
-    update_watch(&oldt, NULL, true);
-
+    /* init token */
     pebble_totp_init(&token, key, sizeof(key), TOTP_INTERVAL);
-    text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
+    text_layer_set_text(text_totp_layer, pebble_totp_get_code(&token));
+
+    /* create line frame */
+    line_layer = layer_create(GRect(8, 97, 139, 2));
+    layer_set_update_proc(line_layer, line_layer_update_callback);
+    layer_add_child(window_layer, line_layer);
 }
 
 
 void
-handle_tick(AppContextRef ctx, PebbleTickEvent *t)
+main_window_unload(Window *window)
 {
-    update_watch(t->tick_time, &oldt, false);
-    oldt = *t->tick_time;
-
-    if (pebble_totp_tick(&token))
-        text_layer_set_text(&text_totp_layer, pebble_totp_get_code(&token));
+    text_layer_destroy(text_date_layer);
+    text_layer_destroy(text_time_layer);
+    text_layer_destroy(text_totp_layer);
+    layer_destroy(line_layer);
+    fonts_unload_custom_font(small_font);
+    fonts_unload_custom_font(bold_font);
 }
 
 
-void pbl_main(void *params) {
-  PebbleAppHandlers handlers = {
-    .init_handler = &handle_init,
+void
+handle_totp(struct tm *tick_time, TimeUnits units_changed)
+{
+    if (tick_time->tm_min != old_time.tm_min)
+        update_time(tick_time, &old_time);
 
-    .tick_info = {
-      .tick_handler = &handle_tick,
-      .tick_units = SECOND_UNIT
-    }
+    if (pebble_totp_tick(&token))
+        text_layer_set_text(text_totp_layer, pebble_totp_get_code(&token));
+}
 
-  };
-  app_event_loop(params, &handlers);
+
+void
+handle_init()
+{
+    WindowHandlers handlers = {
+        .load = main_window_load,
+        .unload = main_window_unload
+    };
+
+    /* create main window */
+    window = window_create();
+    window_set_window_handlers(window, handlers);
+    window_set_background_color(window, COLOR_BG);
+    window_stack_push(window, true /* Animated */);
+
+    /* register timer handlers */
+    tick_timer_service_subscribe(SECOND_UNIT, handle_totp);
+
+    update_time(NULL, NULL);
+}
+
+
+void
+handle_deinit()
+{
+    window_destroy(window);
+    tick_timer_service_unsubscribe();
+}
+
+
+int
+main(void)
+{
+  handle_init();
+  app_event_loop();
+  handle_deinit();
 }

@@ -1,12 +1,3 @@
-.*.swp
-.lock-waf*
-.waf-*
-build/
-resources/wscript
-include
-lib
-pebble_app.ld
-tools
-waf
-wscript
-
+build
+.lock-waf_linux2_build
+tags

@@ -1,3 +1,4 @@
+#include "pebble.h"
 #include "pebble_totp.h"
 
 #include "unixtime.h"
