@@ -1,22 +1,19 @@
 #include "pebble.h"
 #include "pebble_totp.h"
 
-#include "unixtime.h"
 #include "otp.h"
 
 #define MIN(A, B) ((A) > (B) ? (B) : (A))
 
-static unsigned short
+void
 pebble_totp_generate(pebble_totp *token)
 {
-    uint32_t currenttime = unixtime();
+    uint32_t currenttime = time();
     unsigned int totpvalue;
 
     totpvalue = otp_value(token->key, sizeof(token->key), currenttime / token->interval);
 
     snprintf(token->buffer, sizeof(token->buffer), "%.6u", totpvalue);
-
-    return currenttime % token->interval;
 }
 
 
@@ -30,19 +27,7 @@ pebble_totp_init(pebble_totp *token,
     memcpy(token->key, key, MIN(sizeof(token->key), keylen));
 
     token->interval = interval;
-    token->next = pebble_totp_generate(token);
-}
-
-
-bool
-pebble_totp_tick(pebble_totp *token)
-{
-    if (++token->next < token->interval)
-        return false;
-
-    token->next = pebble_totp_generate(token);
-
-    return true;
+    pebble_totp_generate(token);
 }
 
 
